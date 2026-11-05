@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import BookCard from "../components/BookCard"
+import Loader from "../components/Loader"
 
 const Search = () => {
     const [books, setBooks] = useState(undefined)
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setIsError] = useState(null)
     const [searchParams] = useSearchParams()
     const queryParam = searchParams.get("q") || ""
     const [query, setQuery] = useState(queryParam)
@@ -17,10 +20,28 @@ const Search = () => {
 
     useEffect(() => {
         const load = async () => {
-            const res = await fetch('https://openlibrary.org/search.json?q=' + queryParam + "&limit=10")
-            const data = await res.json()
-            console.log(data)
-            setBooks(data)
+            setIsError(null) 
+            setIsLoading(true)
+            
+            try {
+                const res = await fetch(
+                'https://openlibrary.org/search.json?q=' + 
+                    queryParam + 
+                    "&limit=10"
+                )
+                if (!res.ok) {
+                    const error = await res.json()
+                    throw new Error(error.detail[0].msg)
+                }
+                const data = await res.json()
+                setBooks(data)
+            } catch (error) {
+                console.error(error)
+                setIsError(error.message ?? "Давай по новой")
+            } finally {
+                setIsLoading(false)
+            }
+            
         }
         load()
     }, [queryParam])
@@ -29,7 +50,7 @@ const Search = () => {
         <section className="content">
             <div className="search-page-header">
                 <div className="section-label">ПОИСК</div>
-                <h1>Найдите свою следующую книгу</h1>
+                <h1>Найдите свою следующую нигу</h1>
                 <form onSubmit={handleSubmit} className="search" id="searchForm">
                     <span className="search-icon">⌕</span>
                     <input
@@ -54,12 +75,17 @@ const Search = () => {
                 </span>
                 )}
             </div>
-            {books?.docs.length > 0 && (
-            <div className="book-grid" id="results">
-                {books?.docs.map((el, i) => (
-                    <BookCard {...el} key={i}/>
-                ))}
-            </div>
+            {isLoading && <Loader />}
+            {!isLoading && error && <div className="error">{error}</div>}
+            {!isLoading && !error && books?.docs.length > 0 && (
+                <div className="book-grid" id="results">
+                    {books?.docs.map((el, i) => (
+                        <BookCard {...el} key={i}/>
+                    ))}
+                </div>
+            )}
+            {!isLoading && !error && books?.docs.length === 0 &&(
+                <div>Книги не были найдены</div>
             )}
         </section>
     )
